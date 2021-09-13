@@ -1,5 +1,7 @@
 module HashpipeIBVerbs
 
+export @mac_str
+
 module Impl
 
   using CBinding
@@ -31,6 +33,30 @@ const IBV_FLOW_SPEC_UDP  = c"IBV_FLOW_SPEC_UDP"
 
 include("getindex.jl")
 include("iterate.jl")
+
+"""
+    mac(s) -> NTuple{6, UInt8}
+    mac("11:22:33:44:55:66") -> (0x11, 0x22, 0x33, 0x44, 0x55, 0x66)
+
+Parses `s` as a colon delimited hexadecimal MAC address and returns an
+`NTuple{6,UInt8}`.
+"""
+function mac(s)::NTuple{6, UInt8}
+  octets = split(s,':')
+  length(octets) == 6 || error("malformed mac $s")
+  tuple(map(o->parse(UInt8, o, base=16), octets)...)
+end
+
+"""
+    @mac_str -> NTuple{6, UInt8}
+    mac("11:22:33:44:55:66") -> (0x11, 0x22, 0x33, 0x44, 0x55, 0x66)
+
+Parses a `String` literal as a colon delimited hexadecimal MAC address and
+returns an `NTuple{6,UInt8}`.
+"""
+macro mac_str(s)
+  mac(s)
+end
 
 """
 Create and initialize a `struct hashpipe_ibv_context`.  Returns a pointer to the
@@ -72,8 +98,8 @@ various fields in the packet headers must match.  Fields that can be matched
 exist at the Ethernet level, the IPv4 level, and the TCP/UDP level.  The fields
 available for matching are:
 
-  - dst_mac    Ethernet destination MAC address (NTuple{6,UInt8},String,Nothing)
-  - src_mac    Ethernet source MAC address      (NTuple{6,UInt8},String,Nothing)
+  - dst_mac    Ethernet destination MAC address (NTuple{6,UInt8},Carray,Nothing)
+  - src_mac    Ethernet source MAC address      (NTuple{6,UInt8},Carray,Nothing)
   - ether_type Ethernet type field              (UInt16)
   - vlan_tag   Ethernet VLAN tag                (UInt16)
   - src_ip     IP source address                (UInt32)
@@ -114,13 +140,19 @@ zero valued MAC address.  In practice this is unlikely to be a problem.
 Passing `nothing`/`0` for all the match fields will result in the destruction of
 any flow at the `flow_idx` location, but no new flow will be stored there.
 
-The `src_mac` and `dst_mac` values  must be in network byte order.  Note that
-the `mac` field of `pctx` will contain the MAC address of the NIC port being
-used.  Some NICs may require a `dst_mac` match in order to enable any packet
-reception at all.  This can be the unicast MAC address of the NIC port or a
-multicast Ethernet MAC address for receiving multicast packets.  If a multicast
-`dst_ip` is given, `dst_mac` will be ignored and the multicast MAC address
-corresponding to `dst_ip` will be used.
+The `src_mac` and `dst_mac` values  must be in network byte order.  The
+recommended type for passing MAC addresses is `NTuple{6,UInt8}`.  String literal
+MAC addresses can be converted to that type by the `@mac_str` macro (e.g.
+`mac"11:22:33:44:55:66`).  String variables containing MAC addresses can be
+converted using the `mac` function.  Note that the `mac` field of `pctx` will
+contain the MAC address of the NIC port being used and can be passed directly as
+`pctx[].mac`.
+
+Some NICs may require a `dst_mac` match in order to enable any packet reception
+at all.  This can be the unicast MAC address of the NIC port or a multicast
+Ethernet MAC address for receiving multicast packets.  If a multicast `dst_ip`
+is given, `dst_mac` will be ignored and the multicast MAC address corresponding
+to `dst_ip` will be used.
 
 The non-MAC parameters are passed as values and must be in host byte order.
 """
