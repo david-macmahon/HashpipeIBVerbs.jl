@@ -172,7 +172,7 @@ end
 
 function recv_pkts(pctx, timeout=-1)
   pkts = c"hashpipe_ibv_recv_pkts"(pctx, timeout)
-  pkts == C_NULL ? nothing : pkts
+  pkts == C_NULL ? () : pkts
 end
 
 function release_pkts(pctx, recv_pkt)
@@ -186,7 +186,7 @@ function get_pkts(pctx, num_pkts=1)
   if pkts == C_NULL && Libc.errno() != 0
     error(Libc.strerror())
   end
-  pkts == C_NULL ? nothing : pkts
+  pkts == C_NULL ? () : pkts
 end
 
 function send_pkts(pctx, send_pkt)
