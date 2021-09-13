@@ -227,20 +227,4 @@ function wrap_recv_bufs(pctx)
   recv_bufs
 end
 
-# Dev function
-function add_test_flows(pctx)
-  mac=(0xff,0xff,0xff,0xff,0xff,0xff)
-  c"hashpipe_ibv_flow"(pctx, 0, IBV_FLOW_SPEC_ETH, Ref(mac), C_NULL, 0,0, 0,0, 0,0)
-  mac=(0x01,0x80,0xC2,0x00,0x00,0x00)
-  c"hashpipe_ibv_flow"(pctx, 1, c"IBV_FLOW_SPEC_ETH", Ref(mac), C_NULL, 0,0, 0,0, 0,0)==0 || error(Libc.strerror())
-  nothing
-end
-
-# Dev function
-function remove_test_flows(pctx)
-  c"hashpipe_ibv_flow"(pctx, 0, c"IBV_FLOW_SPEC_ETH", C_NULL, C_NULL, 0,0, 0,0, 0,0)==0 || error(Libc.strerror())
-  c"hashpipe_ibv_flow"(pctx, 1, c"IBV_FLOW_SPEC_ETH", C_NULL, C_NULL, 0,0, 0,0, 0,0)==0 || error(Libc.strerror())
-  nothing
-end
-
 end # module HashpipeIBVerbs
