@@ -6,6 +6,7 @@ A Julia interface to the Hashpipe IB Verbs library.
 
 ```julia
 using HashpipeIBVerbs
+using PrettyPrint
 
 # Initialize library to use `eth4` network interface, 2 packet send buffers,
 # 2 packet receive buffers, and 9KiB max packet size.
@@ -17,7 +18,7 @@ recv_bufs = HashpipeIBVerbs.wrap_recv_bufs(pctx)
 # Add a "flow" rule to capture packet sent to MAC address 01:80:c2:00:00:00
 # which is the destination MAC address for Spanning Tree Protocol packets often
 # sent by switches.
-HashpipeIBVerbs.flow(pctx, 1, IBV_FLOW_SPEC_ETH,
+HashpipeIBVerbs.flow(pctx, 1, HashpipeIBVerbs.FLOW_SPEC_ETH,
                      mac"01:80:c2:00:00:00", nothing, 0, 0,
                      0, 0, 0, 0)
 

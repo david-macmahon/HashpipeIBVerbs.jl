@@ -26,10 +26,10 @@ end # module Impl
 using CBinding
 using .Impl
 
-const IBV_FLOW_SPEC_ETH  = c"IBV_FLOW_SPEC_ETH"
-const IBV_FLOW_SPEC_IPV4 = c"IBV_FLOW_SPEC_IPV4"
-const IBV_FLOW_SPEC_TCP  = c"IBV_FLOW_SPEC_TCP"
-const IBV_FLOW_SPEC_UDP  = c"IBV_FLOW_SPEC_UDP"
+const FLOW_SPEC_ETH  = c"IBV_FLOW_SPEC_ETH"
+const FLOW_SPEC_IPV4 = c"IBV_FLOW_SPEC_IPV4"
+const FLOW_SPEC_TCP  = c"IBV_FLOW_SPEC_TCP"
+const FLOW_SPEC_UDP  = c"IBV_FLOW_SPEC_UDP"
 
 include("getindex.jl")
 include("iterate.jl")
@@ -115,21 +115,20 @@ flow is destroyed before the new flow is created and stored at the same index.
 
 The `flow_type` field specifies the type pf the flow.  Supported values are:
 
-  - `IBV_FLOW_SPEC_ETH` This matches packets only at the Ethernet layer.  Match
-                        fields for IP/TCP/UDP are ignored.
+  - `FLOW_SPEC_ETH` This matches packets only at the Ethernet layer.  Match
+                    fields for IP/TCP/UDP are ignored.
 
-  - `IBV_FLOW_SPEC_IPV4` This matches at the Ethernet and IPv4 layers.  Match
-                         fields for TCP/UDP are ignored.  Flow rules at this
-                         level include an implicit match on the Ethertype field
-                         (08 00) to select only IP packets.
+  - `FLOW_SPEC_IPV4` This matches at the Ethernet and IPv4 layers.  Match
+                     fields for TCP/UDP are ignored.  Flow rules at this
+                     level include an implicit match on the Ethertype field
+                     (08 00) to select only IP packets.
 
-  - `IBV_FLOW_SPEC_TCP`,`IBV_FLOW_SPEC_UDP` These match at the Ethernet, IPv4,
-                                            and TCP/UDP layers.  Flow rules of
-                                            these types include an implicit
-                                            match on the Ethertype field to
-                                            select only IP packets and the IP
-                                            protocol field to select only TCP or
-                                            UDP packets.
+  - `FLOW_SPEC_TCP`,`FLOW_SPEC_UDP` These match at the Ethernet, IPv4, and
+                                    TCP/UDP layers.  Flow rules of these types
+                                    include an implicit match on the Ethertype
+                                    field to select only IP packets and the IP
+                                    protocol field to select only TCP or UDP
+                                    packets.
 
 Not all fields need to be matched.  For fields for which a match is not desired,
 simply pass `nothing` for MAC addess fields or `0` for the other fields and that
