@@ -201,12 +201,11 @@ Wrap the send packet buffers of `pctx` with `Vector{UInt8}`.  Return
 """
 function wrap_send_bufs(pctx)
   send_bufs = Vector{Vector{UInt8}}()
-  wr = pctx[].send_pkt_buf[1].wr
   for i in 1:pctx[].send_pkt_num
+    wr = pctx.send_pkt_buf[][i].wr
     # TODO Support mutiple scatter/gather elements per work request
     @assert wr.wr_id == i-1 "Expected wr_id $(i-1), got $(wr.wr_id)"
     push!(send_bufs, unsafe_wrap(Array, Ptr{UInt8}(wr.sg_list[1].addr), wr.sg_list[1].length))
-    wr.next != C_NULL && (wr = wr.next[])
   end
   send_bufs
 end
@@ -217,12 +216,11 @@ Wrap the receive packet buffers of `pctx` with `Vector{UInt8}`.  Return
 """
 function wrap_recv_bufs(pctx)
   recv_bufs = Vector{Vector{UInt8}}()
-  wr = pctx[].recv_pkt_buf[1].wr
   for i in 1:pctx[].recv_pkt_num
+    wr = pctx.recv_pkt_buf[][i].wr
     # TODO Support mutiple scatter/gather elements per work request
     @assert wr.wr_id == i-1 "Expected wr_id $(i-1), got $(wr.wr_id)"
     push!(recv_bufs, unsafe_wrap(Array, Ptr{UInt8}(wr.sg_list[1].addr), wr.sg_list[1].length))
-    wr.next != C_NULL && (wr = wr.next[])
   end
   recv_bufs
 end
