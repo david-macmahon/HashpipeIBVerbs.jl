@@ -5,6 +5,7 @@ export @mac_str
 module Impl
 
   using CBinding
+  import Base: setproperty!
 
   let
     c`-lhashpipe_ibverbs`
@@ -21,6 +22,15 @@ module Impl
     #include "hashpipe_ibverbs.h"
   """
 
+  # Allow one to set a packet's length via a synthetic `length` property of
+  # `Cptr{c"struct hashpipe_ibv_send_pkt"}`
+  function Base.setproperty!(ppkt::Cptr{c"struct hashpipe_ibv_send_pkt"}, sym::Symbol, val)
+    # If the property being set is not `length`, recast ppkt as a more general
+    # type to call the standard implementation
+    sym != :length && return setproperty!(Cptr{CBinding.Caggregate}(UInt(ppkt)), sym, val)
+    ppkt.wr.sg_list[1].length[] = val
+    val
+  end
 end # module Impl
 
 using CBinding
