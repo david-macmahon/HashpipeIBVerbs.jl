@@ -215,3 +215,10 @@ ICMP echo request/reply utility.  To simplify initialization, the local network
 interface to be used (`interface`) and the remote and local MAC and IP
 addresses (`rem_mac`, `rem_ip`, `loc_mac`, `loc_ip`) specified at the top of
 the script must be changed to match your local setup.
+
+Versions of the underlying `hashpipe_ibverbs` library that do not include a fix
+for how send work completion notifications are requested will show two ICMP
+sequence numbers being sent on the first call to `HashpipeIBVerbs.send_pkts`,
+but on subsequent calls only one sequence number will be sent per call.  Newer
+versions of the underlying library (as of commit 98caca4) will show two
+sequence numbers being sent on each and every call.
