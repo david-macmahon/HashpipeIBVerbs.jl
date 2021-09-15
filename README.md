@@ -210,4 +210,8 @@ references to `nothing` or some other "safe" value.
 
 ## Putting it all together
 
-TODO: Create a small script to send two ICMP echo requests and receive two ICMP echo replies.
+The `examples/ping_demo.jl` script uses `HashpipeIBVerbs` to implement a basic
+ICMP echo request/reply utility.  To simplify initialization, the local network
+interface to be used (`interface`) and the remote and local MAC and IP
+addresses (`rem_mac`, `rem_ip`, `loc_mac`, `loc_ip`) specified at the top of
+the script must be changed to match your local setup.
