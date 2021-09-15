@@ -189,6 +189,11 @@ function release_pkts(pctx, recv_pkt)
   nothing
 end
 
+# Allow release_pkts to be passed an empty tuple for `recv_pkt`
+function release_pkts(::Any, ::Tuple{})
+    nothing
+end
+
 function get_pkts(pctx, num_pkts=1)
   Libc.errno(0)
   pkts = c"hashpipe_ibv_get_pkts"(pctx, num_pkts)
@@ -202,6 +207,11 @@ function send_pkts(pctx, send_pkt)
   # Always use QP 0 (since multi-QP support may be disappearing)
   c"hashpipe_ibv_send_pkts"(pctx, send_pkt, 0) == 0 || error(Libc.strerrno())
   nothing
+end
+
+# Allow send_pkts to be passed an empty tuple for `send_pkt`
+function send_pkts(::Any, ::Tuple{})
+    nothing
 end
 
 """
