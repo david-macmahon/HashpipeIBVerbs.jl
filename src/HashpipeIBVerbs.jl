@@ -229,6 +229,30 @@ function send_pkts(::Any, ::Tuple{})
 end
 
 """
+Pass each and every send_pkt in `pctx` to `f`.  Iteration over send_pkt pointers
+(e.g. as returned by `get_pkts`) iterates over a linked list subset of
+send_pkts.  A linked list subset is not guaranteed to include every send_pkt
+object, so `foreach` is not guaranteed to cover every send_pkt of `pctx`.  This
+function accesses all the send_pkt objects in `pctx`, passing each one to `f`,
+which can be useful for initializing the send_pkts.
+"""
+function foreach_send_pkt(f, pctx)
+  foreach(f, (pctx, pctx.send_pkt_buf))
+end
+
+"""
+Pass each and every recv_pkt in `pctx` to `f`.  Iteration over recv_pkt pointers
+(e.g. as returned by `receive_pkts`) iterates over a linked list subset of
+recv_pkts.  A linked list subset is not guaranteed to include every recv_pkt
+object, so `foreach` is not guaranteed to cover every recv_pkt of `pctx`.  This
+function accesses all the recv_pkt objects in `pctx`, passing each one to `f`,
+which can be useful for initializing the recv_pkts.
+"""
+function foreach_recv_pkt(f, pctx)
+  foreach(f, (pctx, pctx.recv_pkt_buf))
+end
+
+"""
 Wrap the send packet buffers of `pctx` with `Vector{UInt8}`.  Return
 `Vector{Vector{UInt8}}`.
 """
