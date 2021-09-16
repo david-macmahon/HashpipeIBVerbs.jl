@@ -45,16 +45,30 @@ include("getindex.jl")
 include("iterate.jl")
 
 """
-    mac(s) -> NTuple{6, UInt8}
+    mac(m) -> NTuple{6, UInt8}
     mac("11:22:33:44:55:66") -> (0x11, 0x22, 0x33, 0x44, 0x55, 0x66)
+    mac(0x112233445566") -> (0x11, 0x22, 0x33, 0x44, 0x55, 0x66)
 
-Parses `s` as a colon delimited hexadecimal MAC address and returns an
-`NTuple{6,UInt8}`.
+Parse `m::AbstractString` as a colon delimited hexadecimal MAC address or the
+lower 6 bytes of `m::UInt64` as a MAC address and return an `NTuple{6, UInt8}`.
+An `identity`-like method also exists for an `NTuple{6, UImt8}` input type so
+calling `mac` on a MAC address compatible Tuple (e.g. the output of a previous
+`mac` call) is allowed.
 """
-function mac(s)::NTuple{6, UInt8}
-  octets = split(s,':')
-  length(octets) == 6 || error("malformed mac $s")
+function mac(m::AbstractString)::NTuple{6, UInt8}
+  octets = split(m,':')
+  length(octets) == 6 || error("malformed mac ", s)
   tuple(map(o->parse(UInt8, o, base=16), octets)...)
+end
+
+function mac(m::UInt64)::NTuple{6, UInt8}
+  (UInt8((m>>40) & 0xff), UInt8((m>>32) & 0xff), UInt8((m>>24) & 0xff),
+   UInt8((m>>16) & 0xff), UInt8((m>> 8) & 0xff), UInt8( m      & 0xff))
+end
+
+# mac of a MAC compatible tuple is simply itself
+function mac(m::NTuple{6, UInt8})
+  m
 end
 
 """
