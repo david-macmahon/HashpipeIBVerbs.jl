@@ -1,6 +1,10 @@
 module HashpipeIBVerbs
 
 export @mac_str
+export foreach_send_pkt
+export foreach_recv_pkt
+export wrap_send_bufs
+export wrap_recv_bufs
 
 module Impl
 

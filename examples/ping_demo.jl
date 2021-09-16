@@ -90,8 +90,8 @@ end
 pctx = HashpipeIBVerbs.init(interface, 2, 20, 100)
 
 # Wrap packet buffers
-send_bufs=HashpipeIBVerbs.wrap_send_bufs(pctx)
-recv_bufs=HashpipeIBVerbs.wrap_recv_bufs(pctx)
+send_bufs=wrap_send_bufs(pctx)
+recv_bufs=wrap_recv_bufs(pctx)
 
 # Setup flow for all IP traffic from remote IP to local IP This can scoop up
 # more than we care for, so use with caution!!!  Do not use this example
