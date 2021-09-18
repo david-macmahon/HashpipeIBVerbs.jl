@@ -1,5 +1,6 @@
 module HashpipeIBVerbs
 
+export mac
 export @mac_str
 export foreach_send_pkt
 export foreach_recv_pkt
