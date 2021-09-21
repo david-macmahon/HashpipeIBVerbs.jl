@@ -5,10 +5,10 @@ using Dates
 interface = "eth4"
 
 rem_mac = mac"02:02:0a:0a:0a:0a" # Remote MAC (skip ARP)
-rem_ip = UInt32(ip"10.10.10.10") # Remote IP
+rem_ip = ip"10.10.10.10"         # Remote IP
 
 loc_mac = mac"02:02:0a:0a:0a:0b" # Local MAC (for `interface`)
-loc_ip = UInt32(ip"10.10.10.11") # Local IP (for `interface`)
+loc_ip = ip"10.10.10.11"         # Local IP (for `interface`)
 
 """
 Compute the 16 bit checksum value of v.
@@ -54,8 +54,8 @@ function icmp_echo_req!(buf, dst_mac, src_mac, dst_ip, src_ip, icmp_id, seq,
         0x4500_0000 | (ip_sz + icmp_sz + payload_sz),  # (verihl.tos)_(length)
         ip_id_fragoff, # (id)|(flags.fragoff)
         0x4001_0000,   # (ttl.proto)_(csum*) [ICMP is proto 1]
-        src_ip,
-        dst_ip
+        UInt32(src_ip),
+        UInt32(dst_ip)
     ]
 
     ip_csum = checksum16(hton.(ip_hdr))
@@ -63,7 +63,7 @@ function icmp_echo_req!(buf, dst_mac, src_mac, dst_ip, src_ip, icmp_id, seq,
 
     # Ethernet header
 
-    eth_hdr = (dst_mac..., src_mac..., 0x08, 0x00)
+    eth_hdr = vcat(dst_mac, src_mac, 0x08, 0x00)
     eth_sz = sizeof(eth_hdr)
 
     # Calculate indexing
@@ -87,18 +87,18 @@ function icmp_echo_req!(buf, dst_mac, src_mac, dst_ip, src_ip, icmp_id, seq,
 end
 
 # Initialize context
-pctx = HashpipeIBVerbs.init(interface, 2, 20, 100)
+ctx = HashpipeIBVerbs.init(interface, 2, 20, 100)
 
 # Wrap packet buffers
-send_bufs=wrap_send_bufs(pctx)
-recv_bufs=wrap_recv_bufs(pctx)
+send_bufs=wrap_send_bufs(ctx)
+recv_bufs=wrap_recv_bufs(ctx)
 
 # Setup flow for all IP traffic from remote IP to local IP This can scoop up
 # more than we care for, so use with caution!!!  Do not use this example
 # on a link with lots of other IP traffic!!!!
-HashpipeIBVerbs.flow(pctx, 1, HashpipeIBVerbs.FLOW_SPEC_IPV4,
-                     loc_mac, rem_mac, 0x0800, 0,
-                     rem_ip, loc_ip, 0, 0)
+HashpipeIBVerbs.flow(ctx, 1,
+                     dst_mac=loc_mac, src_mac=rem_mac, ether_type=0x0800,
+                     src_ip=rem_ip, dst_ip=loc_ip)
 
 # Pick an ICMP ID value
 icmp_id = rand(UInt16)
@@ -110,23 +110,23 @@ replies = 0
 
 while seq < 10
     # Get packet to send
-    spkts = HashpipeIBVerbs.get_pkts(pctx, 2)
+    spkts = HashpipeIBVerbs.get_pkts(ctx, 2)
 
     # Loop over send packets to set contents
     sent_seqs = Int[]
     for spkt in spkts
         global seq += 1
         push!(sent_seqs, seq)
-        spkt.length = icmp_echo_req!(send_bufs[spkt],
-            rem_mac, loc_mac, rem_ip, loc_ip, icmp_id, seq)
+        len!(spkt, icmp_echo_req!(send_bufs[spkt],
+            rem_mac, loc_mac, rem_ip, loc_ip, icmp_id, seq))
     end
 
     # Send packets!
-    HashpipeIBVerbs.send_pkts(pctx, spkts)
+    HashpipeIBVerbs.send_pkts(ctx, spkts)
     @info "$(now()) sent seqs $(sent_seqs)"
 
     # Get replies, if any
-    rpkts = HashpipeIBVerbs.recv_pkts(pctx, 10)
+    rpkts = HashpipeIBVerbs.recv_pkts(ctx, 10)
 
     # Loop over receive packets
     for rpkt in rpkts
@@ -142,7 +142,7 @@ while seq < 10
     end
 
     # Release packets
-    HashpipeIBVerbs.release_pkts(pctx, rpkts)
+    HashpipeIBVerbs.release_pkts(ctx, rpkts)
 
     # Delay a little while if you want
     #sleep(1)
@@ -156,7 +156,7 @@ end
 @info "sent $(seq) ICMP Echo Request packets, received $(replies) ICMP Echo Reply packets"
 
 # Shutdown
-HashpipeIBVerbs.shutdown(pctx)
+HashpipeIBVerbs.shutdown(ctx)
 
 # Forget send/recv buffers
 send_bufs = nothing

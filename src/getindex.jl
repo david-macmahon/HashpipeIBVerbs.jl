@@ -1,21 +1,13 @@
 import Base: getindex
 
-# Index by `Cptr{c"struct hashpipe_ibv_send_pkt"}`
-function Base.getindex(a::AbstractArray, ppkt::Cptr{c"struct hashpipe_ibv_send_pkt"})
-    Base.getindex(a, ppkt.wr.wr_id[]+1)
-end
+"""
+    getindex(a::AbstractArray, ptr)
 
-# Index by `Cptr{c"struct ibv_send_wr"}`
-function Base.getindex(a::AbstractArray, pwr::Cptr{c"struct ibv_send_wr"})
-    Base.getindex(a, pwr.wr_id[]+1)
-end
-
-# Index by `Cptr{c"struct hashpipe_ibv_recv_pkt"}`
-function Base.getindex(a::AbstractArray, ppkt::Cptr{c"struct hashpipe_ibv_recv_pkt"})
-    Base.getindex(a, ppkt.wr.wr_id[]+1)
-end
-
-# Index by `Cptr{c"struct ibv_recv_wr"}`
-function Base.getindex(a::AbstractArray, pwr::Cptr{c"struct ibv_recv_wr"})
-    Base.getindex(a, pwr.wr_id[]+1)
+Use the `wr_id` of the object pointed to by `ptr` to index into AbstractArray
+`a`.  `ptr` can be of type `Ptr{SendPkt}`, `Ptr{RecvPkt}`, `Ptr{SendWR}`, or
+`Ptr{RecvWR}`.  Typically used to index into the `Vector{Vector{UInt8}}`
+returned by `wrap_send_bufs` and `wrap_recv_bufs`.
+"""
+function Base.getindex(a::AbstractArray, ptr::Ptr{<:Union{SendPkt,RecvPkt,SendWR,RecvWR}})
+    Base.getindex(a, 1+wr_id(ptr))
 end
