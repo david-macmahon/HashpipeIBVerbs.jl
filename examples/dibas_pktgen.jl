@@ -105,25 +105,19 @@ function dibas_udp_pkt!(buf; dst_mac, src_mac, dst_ip, src_ip,
     return eth_sz + ip_sz + udp_sz + hdr_sz + payload_sz + footer_sz
 end
 
-#=
 """
-Set the mcount field of DIBAS packet `buf` to the seven least significant bytes
-of `mcount`, mhich must be given in host byte order.  If `node_id` is given (and
-not `nothing`), the node_id field will also be updated, otherwise the original
-node_id field in `buf` is preserved.
-"""
-=#
-"""
-Set the mcount field of DIBAS packet `buf` to the seven least significant bytes
-of `mcount`, mhich must be given in host byte order.
+Set the node_id and mcount fields of DIBAS packet `buf` to the value of
+`mcount`, mhich must be given in host byte order.  The most significant byte of
+`mcount` is used as the `node_id` while the lower 7 bytes are the actual
+`mcount`.
 """
 function dibas_mcount!(buf, mcount)
-    unsafe_store!(Ptr{Int64}(pointer(buf)+42), hton(mcount))
+    unsafe_store!(Ptr{UInt64}(pointer(buf)+42), hton(mcount))
     nothing
 end
 
-function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6; init_mcount=0)
-    # MCOUNT value
+function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6; init_mcount::UInt64=UInt64(0))
+  # MCOUNT value (has node_id is uppermost 8 bits)
     mcount = init_mcount
 
     # Packet stats variables
@@ -154,7 +148,7 @@ function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6; init_mcount=0)
     pkts_sent, bytes_sent, ms, gbps
 end
 
-function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6)
+function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6; node_id=5)
     # Initialize context
     ctx = HashpipeIBVerbs.init(interface, 1000, 1, 9000)
 
@@ -165,7 +159,7 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6)
     for (i, buf) in enumerate(send_bufs)
         dibas_udp_pkt!(buf,
                        dst_mac=rem_mac, src_mac=loc_mac,
-                       dst_ip=rem_ip, src_ip=loc_ip, node_id=5,
+                       dst_ip=rem_ip, src_ip=loc_ip, node_id=node_id,
                        payload=reinterpret(UInt8, hton.(fill(i%UInt16, 4096)))
                       )
     end
@@ -173,7 +167,8 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6)
     # Preset the length of all send packets
     foreach_send_pkt(p->len!(p, dibas_udp_size()), ctx)
 
-    pkts_sent, bytes_sent, ms, gbps = send_dibas_pkts(ctx, send_bufs, num_to_send)
+    init_mcount = UInt64(node_id) << 56
+    pkts_sent, bytes_sent, ms, gbps = send_dibas_pkts(ctx, send_bufs, num_to_send; init_mcount=init_mcount)
 
     # Show summary
     @info "sent $pkts_sent DIBAS packets [$bytes_sent bytes] in $(canonicalize(ms)) [$(round(gbps, sigdigits=5)) Gbps]"
