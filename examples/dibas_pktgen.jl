@@ -184,6 +184,6 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     n = 10^7
-    isempty(ARGS) || (n = something(tryparse(Int, ARGS[1]), n))
-    main("eth4", rem_mac, rem_ip, loc_mac, loc_ip, n)
+    isempty(ARGS) || (n = something(tryparse(Float64, ARGS[1]), n))
+    main("eth4", rem_mac, rem_ip, loc_mac, loc_ip, round(Int,n))
 end
