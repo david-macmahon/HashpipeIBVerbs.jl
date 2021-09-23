@@ -115,10 +115,10 @@ HashpipeIBVerbs.get_pkts(ctx, num_pkts)
 
 `num_pkts` specifies the desired number of packets to acquire.  The return
 value is either `()` (i.e. an empty tuple) if no send packets are available or
-a `Ptr{SendPkt}` (i.e. a pointer single packet) that points to the head of a
+a `Ptr{SendPkt}` (i.e. a pointer to a send packet) that points to the head of a
 linked list of packets.  The returned value must be iterated over to access all
 the acquired packets.  For this reason, the return value is often stored in a
-variable with a pluralized name (e.g. `ppkts`) when `num_pkts > 1`.
+variable with a pluralized name (e.g. `pkts`) when `num_pkts > 1`.
 
 #### Modifying the packet buffer contents
 
@@ -128,7 +128,7 @@ as an index into the `Vector`.  The resultant `Vector{UInt8}` contains the data
 that will be sent to the network.  The user should set this as desired.  This
 packet buffer must include the Ethernet header and any other headers/payloads
 required for the packet format being sent.  The length of the packet to be sent
-must be set using `len!(ppkt, n)`.
+must be set using `len!(pkt, n)`.
 
 #### Sending the packet(s)
 
@@ -179,7 +179,7 @@ handle an empty tuple even when `timeout_ms` is negative.
 
 The received packets' data buffers can be accessed from the `Vector` returned by
 `wrap_recv_bufs(ctx)` by using the `Ptr{RecvPkt}` objects themselves as an index
-into the `Vector`.  The first `len(ppkt)` values of the resultant
+into the `Vector`.  The first `len(pkt)` values of the resultant
 `Vector{UInt8}` contain the received packet data.  This includes the Ethernet
 header and any other data present in the packet.
 
