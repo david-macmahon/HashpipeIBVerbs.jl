@@ -116,14 +116,17 @@ function dibas_mcount!(buf, mcount)
     nothing
 end
 
-function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6; init_mcount::UInt64=UInt64(0))
+function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6, desired_bps::Float32=0.0; init_mcount::UInt64=UInt64(0))
   # MCOUNT value (has node_id is uppermost 8 bits)
     mcount = init_mcount
 
     # Packet stats variables
     pkts_sent = 0
     start = now()
+    start_sec = datetime2unix(start)
     payload_sz = 8192
+    packet_sz = dibas_udp_size()
+    packet_bits = 8 * packet_sz
 
     while pkts_sent < num_to_send
         # Get packet to send
@@ -138,17 +141,44 @@ function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6; init_mcount::UInt64=U
 
         # Send packets!
         HashpipeIBVerbs.send_pkts(ctx, pkts)
+
+        # Throttle
+        if desired_bps > 0
+            # data_time is the time corresponding to the data sent thus at the
+            # desired rate.
+            #
+            #                   bits_sent
+            # seconds = -------------------------
+            #            desired_bits_per_second
+            #
+            data_time = pkts_sent * packet_bits / desired_bps
+            # elapsed_time is the time that has elapsed since we started sending
+            # packets.
+            elapsed_time = time() - start_sec
+
+            # Compute sleep time needed to allow elapsed_time to catch up to
+            # data_time.
+            sleep_time = data_time - elapsed_time
+
+            # If we are ahead of schedule by more than a tolerable threshold
+            if sleep_time > 0.005f0
+                # Sleep!
+                sleep(sleep_time)
+            end
+        end
     end
 
     stop = now()
     ms = stop - start
-    bytes_sent = pkts_sent * payload_sz
-    gbps = 8 * bytes_sent / ms.value / 10^6
+    payload_bytes_sent = pkts_sent * payload_sz
+    total_bytes_sent = pkts_sent * packet_sz
+    payload_gbps = 8 * payload_bytes_sent / ms.value / 10^6
+    total_gbps = 8 * total_bytes_sent / ms.value / 10^6
 
-    pkts_sent, bytes_sent, ms, gbps
+    pkts_sent, payload_bytes_sent, total_bytes_sent, ms, payload_gbps, total_gbps
 end
 
-function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6; node_id=5)
+function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6, desired_bps::Float32=0; node_id=5)
     # Initialize context
     ctx = HashpipeIBVerbs.init(interface, 1000, 1, 9000)
 
@@ -168,10 +198,15 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6; nod
     foreach_send_pkt(p->len!(p, dibas_udp_size()), ctx)
 
     init_mcount = UInt64(node_id) << 56
-    pkts_sent, bytes_sent, ms, gbps = send_dibas_pkts(ctx, send_bufs, num_to_send; init_mcount=init_mcount)
+    pkts, payload_bytes, total_bytes, ms, payload_gbps, total_gbps =
+        send_dibas_pkts(ctx, send_bufs, num_to_send, desired_bps; init_mcount=init_mcount)
+
+    payload_gbps = round(payload_gbps, sigdigits=5)
+    total_gbps = round(total_gbps, sigdigits=5)
 
     # Show summary
-    @info "sent $pkts_sent DIBAS packets [$bytes_sent bytes] in $(canonicalize(ms)) [$(round(gbps, sigdigits=5)) Gbps]"
+    @info "sent $pkts DIBAS packets [$payload_bytes/$total_bytes bytes] in $(
+        canonicalize(ms)) [$payload_gbps/$total_gbps Gbps]"
 
     # Shutdown
     HashpipeIBVerbs.shutdown(ctx)
@@ -179,6 +214,8 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     n = 10^7
-    isempty(ARGS) || (n = something(tryparse(Float64, ARGS[1]), n))
-    main("eth4", rem_mac, rem_ip, loc_mac, loc_ip, round(Int,n))
+    gbps = 0f0 # Fast as possible
+    length(ARGS) > 0 && (n = something(tryparse(Float64, ARGS[1]), n))
+    length(ARGS) > 1 && (gbps = something(tryparse(Float32, ARGS[2]), gbps))
+    main("eth4", rem_mac, rem_ip, loc_mac, loc_ip, round(Int,n), 1f9*gbps)
 end
