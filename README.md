@@ -23,18 +23,18 @@ HashpipeIBVerbs.flow(ctx, 1, dst_mac=mac"01:80:c2:00:00:00")
 # Loop 10 times
 for i in 1:10
     # Receive packet(s)
-    ppkts = HashpipeIBVerbs.recv_pkts(ctx)
+    pkts = HashpipeIBVerbs.recv_pkts(ctx)
 
-    # Iterate through `ppkts`
-    for ppkt in pkts
-        # Pretty print packet data.  Notice how `ppkt` is used as an index into
+    # Iterate through `pkts`
+    for pkt in pkts
+        # Pretty print packet data.  Notice how `pkt` is used as an index into
         # `recv_bufs` to get `Vector{UInt8}` corresponding the the received
         # packet's receive buffer.
-        pprintln(recv_bufs[pkt][1:len(ppkt)])
+        pprintln(recv_bufs[pkt][1:len(pkt)])
     end
 
     # Release packet(s)
-    HashpipeIBVerbs.release_pkts(ctx, ppkts)
+    HashpipeIBVerbs.release_pkts(ctx, pkts)
 end
 
 # Shutdown (frees resources allocated by init)
