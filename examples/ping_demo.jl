@@ -117,8 +117,8 @@ while seq < 10
     for spkt in spkts
         global seq += 1
         push!(sent_seqs, seq)
-        len!(spkt, icmp_echo_req!(send_bufs[spkt],
-            rem_mac, loc_mac, rem_ip, loc_ip, icmp_id, seq))
+        pktlen!(spkt, icmp_echo_req!(send_bufs[spkt],
+                rem_mac, loc_mac, rem_ip, loc_ip, icmp_id, seq))
     end
 
     # Send packets!

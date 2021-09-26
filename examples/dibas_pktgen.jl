@@ -195,7 +195,7 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6, des
     end
 
     # Preset the length of all send packets
-    foreach_send_pkt(p->len!(p, dibas_udp_size()), ctx)
+    foreach_send_pkt(p->pktlen!(p, dibas_udp_size()), ctx)
 
     init_mcount = UInt64(node_id) << 56
     pkts, payload_bytes, total_bytes, ms, payload_gbps, total_gbps =

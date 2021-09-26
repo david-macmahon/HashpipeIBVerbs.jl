@@ -8,8 +8,8 @@ export next
 export sg_list
 export num_sge
 export timestamp
-export len
-export len!
+export pktlen
+export pktlen!
 export lkey
 
 export foreach_send_pkt
@@ -267,8 +267,8 @@ the returned list to contain fewer than `num_pkts`.  If `num_pkts` is omitted,
 it defaults to `ctx.send_pkt_num`.
 
 The returned objects may have been used to send previous packets in which case
-the length returned by `len` will reflect the length of those packets rather
-then the size of the buffer space allocated for the packets.
+the length returned by `pktlen()` will reflect the length of those packets
+rather then the size of the buffer space allocated for the packets.
 
 After populating the buffers for these packets (see `wrap_send_bufs`), the
 packets can be sent by passing the `Ptr{SendPkt}` object to
@@ -350,7 +350,7 @@ function wrap_send_bufs(ctx)
     ppkt = ctx.send_pkt_buf
     for i in 1:n
         send_bufs[i] = unsafe_wrap(Array, Ptr{UInt8}(ppkt|>sg_list|>addr),
-                                          ppkt|>sg_list|>len)
+                                          ppkt|>sg_list|>sgelen)
         ppkt += sizeof(SendPkt)
     end
     send_bufs
@@ -368,7 +368,7 @@ function wrap_recv_bufs(ctx)
     ppkt = ctx.recv_pkt_buf
     for i in 1:n
         recv_bufs[i] = unsafe_wrap(Array, Ptr{UInt8}(ppkt|>sg_list|>addr),
-                                          ppkt|>sg_list|>len)
+                                          ppkt|>sg_list|>sgelen)
         ppkt += sizeof(RecvPkt)
     end
     recv_bufs

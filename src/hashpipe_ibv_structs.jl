@@ -25,13 +25,12 @@ sg_list(p::Ptr{SendPkt}) = unsafe_load(Ptr{Ptr{SGElement}}(p),SendWROffset3)
 num_sge(p::Ptr{SendPkt}) = unsafe_load(Ptr{Int32}(p),SendWROffset4)
 
 # Provide a convenient way to get/set the length of SendPkt's data
-len(p::Ptr{SendPkt}) = p|>sg_list|>len
-len!(p::Ptr{SendPkt}, n::UInt32) = len!(p|>sg_list, n)
-len!(p::Ptr{SendPkt}, n) = len!(p, n % UInt32)
+pktlen(p::Ptr{SendPkt}) = sgelen(p|>sg_list)
+pktlen!(p::Ptr{SendPkt}, n) = sgelen!(p|>sg_list, n % UInt32)
 
 @kwdef mutable struct RecvPkt
     wr::RecvWR = RecvWR()
-    len::UInt32 = 0
+    pktlen::UInt32 = 0
     timestamp::UInt64 = 0
 end
 
@@ -40,7 +39,7 @@ const RecvPktOffset2 = fieldtypeoffset(RecvPkt, 2)
 const RecvPktOffset3 = fieldtypeoffset(RecvPkt, 3)
 
 #wr(p::Ptr{RecvPkt}) = unsafe_load(Ptr{RecvWR}(p))
-len(p::Ptr{RecvPkt}) = unsafe_load(Ptr{UInt32}(p),RecvPktOffset2)
+pktlen(p::Ptr{RecvPkt}) = unsafe_load(Ptr{UInt32}(p),RecvPktOffset2)
 timestamp(p::Ptr{RecvPkt}) = unsafe_load(Ptr{UInt64}(p),RecvPktOffset3)
 
 # These functions take advantage of the fact that a Ptr{RecvPkt} is also a

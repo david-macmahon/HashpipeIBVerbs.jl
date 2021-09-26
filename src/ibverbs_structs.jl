@@ -51,7 +51,7 @@ end # struct DeviceAttr
 
 @kwdef struct SGElement
     addr::UInt64 = 0
-    len::UInt32 = 0
+    sgelen::UInt32 = 0
     lkey::UInt32 = 0
 end
 
@@ -60,11 +60,11 @@ const SGElementOffset2 = fieldtypeoffset(SGElement, 2)
 const SGElementOffset3 = fieldtypeoffset(SGElement, 3)
 
 addr(p::Ptr{SGElement}) = unsafe_load(Ptr{UInt64}(p),SGElementOffset1)
-len(p::Ptr{SGElement}) = unsafe_load(Ptr{UInt32}(p),SGElementOffset2)
+sgelen(p::Ptr{SGElement}) = unsafe_load(Ptr{UInt32}(p),SGElementOffset2)
 lkey(p::Ptr{SGElement}) = unsafe_load(Ptr{UInt32}(p),SGElementOffset3)
 
-len!(p::Ptr{SGElement}, n::UInt32) = unsafe_store!(Ptr{UInt32}(p), n, SGElementOffset2)
-len!(p::Ptr{SGElement}, n) = len!(p, n % UInt32)
+sgelen!(p::Ptr{SGElement}, n::UInt32) = unsafe_store!(Ptr{UInt32}(p), n, SGElementOffset2)
+sgelen!(p::Ptr{SGElement}, n) = sgelen!(p, n % UInt32)
 
 @kwdef struct SendWR
     wr_id::UInt64 = 0

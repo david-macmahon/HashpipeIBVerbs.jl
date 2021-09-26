@@ -30,7 +30,7 @@ for i in 1:10
         # Pretty print packet data.  Notice how `pkt` is used as an index into
         # `recv_bufs` to get `Vector{UInt8}` corresponding the the received
         # packet's receive buffer.
-        pprintln(recv_bufs[pkt][1:len(pkt)])
+        pprintln(recv_bufs[pkt][1:pktlen(pkt)])
     end
 
     # Release packet(s)
@@ -136,7 +136,7 @@ an index into the `Vector`.  The resultant `Vector{UInt8}` contains the data
 that will be sent to the network.  The user should set this as desired.  The
 packet buffer must include the Ethernet header and any other headers/payloads
 required for the packet format being sent.  The length of the packet to be sent
-must be set using `len!(pkt, n)`.  Continuing the previous example:
+must be set using `pktlen!(pkt, n)`.  Continuing the previous example:
 
 ```julia
 for pkt in pkts
@@ -145,7 +145,7 @@ for pkt in pkts
     send_bufs[pkt][1:6] = dst_mac
     # etc...
     # Set packet length
-    len!(pkt, n)
+    pktlen!(pkt, n)
 end
 ```
 
@@ -208,9 +208,10 @@ negative.
 
 The received packets' data buffers can be accessed from the `Vector` returned by
 `wrap_recv_bufs(ctx)` by using the `Ptr{RecvPkt}` objects themselves as an index
-into the `Vector`.  The first `len(pkt)` values of the resultant `Vector{UInt8}`
-contain the received packet data.  This includes the Ethernet header and any
-other data present in the packet.  Continuing the previous example:
+into the `Vector`.  The first `pktlen(pkt)` values of the resultant
+`Vector{UInt8}` contain the received packet data.  This includes the Ethernet
+header and any other data present in the packet.  Continuing the previous
+example:
 
 ```julia
 for pkt in pkts
@@ -218,7 +219,7 @@ for pkt in pkts
     # `recv_bufs` holds the value from a previous call to `wrap_recv_bufs(ctx)`
     src_mac = join(string.(recv_bufs[pkt][7:12], base=16, pad=2), ':')
     # Get packet length
-    n = len(pkt)
+    n = pktlen(pkt)
     println("got ", n, " byte packet from ", src_mac)
 end
 ```
