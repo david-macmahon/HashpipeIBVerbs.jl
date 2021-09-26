@@ -107,34 +107,53 @@ transmission are not acquirable in this way).
 
 #### Acquiring packets
 
-Packets to be sent can be acquired from:
+Packets to be sent can be acquired using:
 
 ```julia
-HashpipeIBVerbs.get_pkts(ctx, num_pkts)
+pkts = HashpipeIBVerbs.get_pkts(ctx, num_pkts)
 ```
 
-`num_pkts` specifies the desired number of packets to acquire.  The return
-value is either `()` (i.e. an empty tuple) if no send packets are available or
-a `Ptr{SendPkt}` (i.e. a pointer to a send packet) that points to the head of a
-linked list of packets.  The returned value must be iterated over to access all
-the acquired packets.  For this reason, the return value is often stored in a
-variable with a pluralized name (e.g. `pkts`) when `num_pkts > 1`.
+`num_pkts` specifies the desired number of packets to acquire.  The return value
+is a `Ptr{SendPkt}` (i.e. a pointer to a send packet) that points to a possibly
+empty linked list of packets.  For this reason, the return value is often stored
+in a variable with a pluralized name (e.g. `pkts`) when `num_pkts > 1`.  The
+returned value must be iterated over to access all the acquired packets:
+
+```julia
+for pkt in pkts
+    # Modify the contents of the "send buffer" for `pkt`
+end
+```
+
+`isempty(pkts)` can be used to test for an empty linked list, but this is often
+not needed since iterating over an empty linked list does nothing anyway.
 
 #### Modifying the packet buffer contents
 
 Once acquired, the packet's send buffer can be accessed from the `Vector`
-returned by `wrap_send_bufs(ctx)` by using the `Ptr{SendPkt}` object itself
-as an index into the `Vector`.  The resultant `Vector{UInt8}` contains the data
-that will be sent to the network.  The user should set this as desired.  This
+returned by `wrap_send_bufs(ctx)` by using the `Ptr{SendPkt}` object itself as
+an index into the `Vector`.  The resultant `Vector{UInt8}` contains the data
+that will be sent to the network.  The user should set this as desired.  The
 packet buffer must include the Ethernet header and any other headers/payloads
 required for the packet format being sent.  The length of the packet to be sent
-must be set using `len!(pkt, n)`.
+must be set using `len!(pkt, n)`.  Continuing the previous example:
+
+```julia
+for pkt in pkts
+    # Modify the contents of the "send buffer" for `pkt`
+    # `send_bufs` holds the value from a previous call to `wrap_send_bufs(ctx)`
+    send_bufs[pkt][1:6] = dst_mac
+    # etc...
+    # Set packet length
+    len!(pkt, n)
+end
+```
 
 #### Sending the packet(s)
 
 After the contents have been set as desired and the packet length(s) have been
 set, the packets can then be sent by passing the acquired `Ptr{SendPkt}` object
-to `HashpipeIBVerbs.send_pkts()`.  This call just posts (i.e. enqueues) the
+to `HashpipeIBVerbs.send_pkts(pkts)`.  This call just posts (i.e. enqueues) the
 packets to be sent.  It does not wait for the packets to be sent.
 
 ### Receiving packets
@@ -158,38 +177,59 @@ repeated here.
 Received packets can be obtained by calling:
 
 ```julia
-HashpipeIBVerbs.recv_pkts(ctx, timeout_ms)
+pkts = HashpipeIBVerbs.recv_pkts(ctx, timeout_ms)
 ```
 
 This function will wait for packets to be received or for `timeout_ms`
 milliseconds, whichever happens first, before returning.  Timeout values less
 than 0 mean "forever" (the default if the `timeout_ms` argument is omitted).
-The return value will be either `()` (i.e.  an empty tuple) or a `Ptr{RecvPkt}`
-object that points to the head of a linked list of packets.  The returned value
-must be iterated over to access all the returned packets.
+The return value will be a `Ptr{RecvPkt}` (i.e. a pointer to a receive packet)
+that points to a possibly empty linked list of packets.  The returned value must
+be iterated over to access all the returned packets:
 
-An empty tuple is returned if `timeout_ms` milliseconds elapse with no packets
-being received, but also in the case where received packets were returned by a
-previous call to `HashpipeIBVerbs.recv_pkts()`.  This latter case can happen
-because it is possible for the library to receive packets before handling the
-notification for those packets.  This means that the user should be prepared to
-handle an empty tuple even when `timeout_ms` is negative.
+```julia
+for pkt in pkts
+    # Access the contents of the "receive buffer" for `pkt`
+end
+```
+
+`isempty(pkts)` can be used to test for an empty linked list, but this is often
+not needed since iterating over an empty linked list does nothing anyway.
+
+A pointer to an empty linked list is returned if `timeout_ms` milliseconds
+elapse with no packets being received, but also in the case where received
+packets were returned by a previous call to `HashpipeIBVerbs.recv_pkts()`.  This
+latter case can happen because it is possible for the library to receive packets
+before handling the notification for those packets.  This means that the user
+should be prepared to handle an empty linked list even when `timeout_ms` is
+negative.
 
 #### Accessing the received packet contents
 
 The received packets' data buffers can be accessed from the `Vector` returned by
 `wrap_recv_bufs(ctx)` by using the `Ptr{RecvPkt}` objects themselves as an index
-into the `Vector`.  The first `len(pkt)` values of the resultant
-`Vector{UInt8}` contain the received packet data.  This includes the Ethernet
-header and any other data present in the packet.
+into the `Vector`.  The first `len(pkt)` values of the resultant `Vector{UInt8}`
+contain the received packet data.  This includes the Ethernet header and any
+other data present in the packet.  Continuing the previous example:
+
+```julia
+for pkt in pkts
+    # Format the source MAC address
+    # `recv_bufs` holds the value from a previous call to `wrap_recv_bufs(ctx)`
+    src_mac = join(string.(recv_bufs[pkt][7:12], base=16, pad=2), ':')
+    # Get packet length
+    n = len(pkt)
+    println("got ", n, " byte packet from ", src_mac)
+end
+```
 
 #### Releasing packets
 
 After handling/processing the data of the received packets, the packet objects
 must be released back to the library by passing the `Ptr{RecvPkt}` object
-`HashpipeIBVerbs.release_pkts`.  If the library runs out of packet objects into
-which to receive packets incoming packets may be dropped, so to prevent packet
-loss it is important to turn around received packet objects as quickly as
+`HashpipeIBVerbs.release_pkts(pkts)`.  If the library runs out of packet objects
+into which to receive packets incoming packets may be dropped, so to prevent
+packet loss it is important to turn around received packet objects as quickly as
 possible.  Currently there is a one-to-one mapping between packet objects and
 packet buffers, but future versions of `HashpipeIBVerbs` may provide more
 flexibility in this area to facilitate rapid packet object turnaround.
@@ -215,8 +255,8 @@ long lived.
 The `examples/ping_demo.jl` script uses `HashpipeIBVerbs` to implement a basic
 ICMP echo request/reply utility.  To simplify initialization, the local network
 interface to be used (`interface`) and the remote and local MAC and IP
-addresses (`rem_mac`, `rem_ip`, `loc_mac`, `loc_ip`) specified at the top of
-the script must be changed to match your local setup.
+addresses (`rem_mac`, `rem_ip`, `loc_mac`, `loc_ip`) are specified at the top of
+the script and must be changed to match your local setup.
 
 Versions of the underlying `hashpipe_ibverbs` library that do not include a fix
 for how send work completion notifications are requested will show two ICMP

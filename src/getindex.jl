@@ -1,5 +1,3 @@
-import Base: getindex
-
 """
     getindex(a::AbstractArray, ptr)
 
@@ -9,5 +7,6 @@ Use the `wr_id` of the object pointed to by `ptr` to index into AbstractArray
 returned by `wrap_send_bufs` and `wrap_recv_bufs`.
 """
 function Base.getindex(a::AbstractArray, ptr::Ptr{<:Union{SendPkt,RecvPkt,SendWR,RecvWR}})
+    (ptr == C_NULL && throw(BoundsError(a, ptr)))
     Base.getindex(a, 1+wr_id(ptr))
 end

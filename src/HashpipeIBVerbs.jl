@@ -29,7 +29,7 @@ include("getindex.jl")
 
 Parse `m::AbstractString` as a colon delimited hexadecimal MAC address or the
 lower 6 bytes of `m::UInt64` as a MAC address and return an `SVector{6, UInt8}`.
-An `identity`-like method also exists for an `SVector{6, UImt8}` input type so
+An `identity`-like method also exists for an `SVector{6, UInt8}` input type so
 calling `mac` on a MAC address compatible `SVector{6, UInt8}` (e.g. the output
 of a previous `mac` call) is allowed.
 """
@@ -46,7 +46,7 @@ function mac(m::UInt64)::SVector{6, UInt8}
     )
 end
 
-# mac of a MAC compatible tuple is simply itself
+# mac of a MAC compatible SVector is simply itself
 function mac(m::SVector{6, UInt8})
     m
 end
@@ -216,11 +216,11 @@ function flow(ctx, flow_idx; flow_type=FLOW_SPEC_UDP,
 end
 
 """
-    recv_pkts(ctx::Context)::Union{Ptr{RecvPkt},Tuple{}}
-    recv_pkts(ctx::Context, timeout_ms::Integer)::Union{Ptr{RecvPkt},Tuple{}}
+    recv_pkts(ctx::Context)::Ptr{RecvPkt}
+    recv_pkts(ctx::Context, timeout_ms::Integer)::Ptr{RecvPkt}
 
 Return a `Ptr{RecvPkt}` that points to a linked list of `RecvPkt` objects with
-received packets if any, otherwise it will return and empty tuple `()`.  If no
+received packets if any, otherwise it will return `Ptr{RecvPkt}(0)`.  If no
 received packets are already queued, it will wait no longer than `timeout_ms`
 milliseconds for packets to arrive.   A timeout of zero returns immediately.  A
 negative timeout waits "forever" (the default if `timeout_ms` is omitted).
@@ -229,27 +229,24 @@ Because notifications from the underlying library are asynchronous with received
 packet handling, it is possible that packets for a notification will be handled
 while handling the previous notification.  When handing the latter notification,
 it is possible that there will be no packets left unhandled.  This means that a
-timeout cannot be detected/inferred from a normal "no packet" empty tuple `()`
-return.
+timeout cannot be detected/inferred from a normal "no packet" empty return
+value (i.e `Ptr{RecvPkt}(0)`).
 
 After processing all of the packets, the caller must release the packets
 by passing the `Ptr{RecvPkt}` object to `HashpipeIBVerbs.release_pkts()`.
 """
 function recv_pkts(ctx, timeout_ms=-1)
-    pkts = @ccall $(hashpipe_ibv_recv_pkts[])(
-                    Ref(ctx)::Ptr{Context},
-                    timeout_ms::Cint
-                   )::Ptr{RecvPkt}
-    pkts == C_NULL ? () : pkts
+    @ccall $(hashpipe_ibv_recv_pkts[])(
+             Ref(ctx)::Ptr{Context},
+             timeout_ms::Cint
+            )::Ptr{RecvPkt}
 end
 
 
 """
     release_pkts(ctx::Context, recv_pkt::Ptr{RecvPkt})::Nothing
-    release_pkts(ctx::Context, recv_pkt::Tuple{})::Nothing
 
-Release a list of received packets after they have been processed.  Any empty
-tuple `()` may also be passed .
+Release a list of received packets after they have been processed.
 """
 function release_pkts(ctx, recv_pkt)
     rc = @ccall $(hashpipe_ibv_release_pkts[])(
@@ -259,18 +256,13 @@ function release_pkts(ctx, recv_pkt)
     rc == 0 ? nothing : error(Libc.strerror())
 end
 
-# Allow release_pkts to be passed an empty tuple for `recv_pkt`
-function release_pkts(::Any, ::Tuple{})
-    nothing
-end
-
 """
-    get_pkts(ctx::Context)::Union{Ptr{SendPkt}, Tuple{}}
-    get_pkts(ctx::Context, num_pkts::Integer)::Union{Ptr{SendPkt}, Tuple{}}
+    get_pkts(ctx::Context)::Ptr{SendPkt}
+    get_pkts(ctx::Context, num_pkts::Integer)::Ptr{SendPkt}
 
 Request a set of `num_pkts` free `SendPkt`s.  These are returned as a
 `Ptr{SendPkt}` that points to the head of a linked list of `SendPkt` objects.
-If no packets are available an empty tuple `()` is returned.  It is possible for
+If no packets are available `Ptr{SendPkt}(0)` is returned.  It is possible for
 the returned list to contain fewer than `num_pkts`.  If `num_pkts` is omitted,
 it defaults to `ctx.send_pkt_num`.
 
@@ -291,7 +283,7 @@ function get_pkts(ctx, num_pkts=ctx.send_pkt_num)
     if ppkts == C_NULL && Libc.errno() != 0
         error(Libc.strerror())
     end
-    ppkts == C_NULL ? () : ppkts
+    ppkts
 end
 
 """
@@ -307,11 +299,6 @@ function send_pkts(ctx, ppkt)
                   ppkt::Ptr{SendPkt}, 0::UInt32
                  )::Cint
     rc == 0 || error(Libc.strerrno())
-    nothing
-end
-
-# Allow send_pkts to be passed an empty tuple for `send_pkt`
-function send_pkts(::Any, ::Tuple{})
     nothing
 end
 
