@@ -201,12 +201,13 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6, des
     pkts, payload_bytes, total_bytes, ms, payload_gbps, total_gbps =
         send_dibas_pkts(ctx, send_bufs, num_to_send, desired_bps; init_mcount=init_mcount)
 
+    pps = round(1000*pkts/ms.value, digits=1)
     payload_gbps = round(payload_gbps, sigdigits=5)
     total_gbps = round(total_gbps, sigdigits=5)
 
     # Show summary
     @info "sent $pkts DIBAS packets [$payload_bytes/$total_bytes bytes] in $(
-        canonicalize(ms)) [$payload_gbps/$total_gbps Gbps]"
+        canonicalize(ms)) [$pps pps, $payload_gbps/$total_gbps Gbps]"
 
     # Shutdown
     HashpipeIBVerbs.shutdown(ctx)
