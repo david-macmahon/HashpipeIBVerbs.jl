@@ -249,11 +249,14 @@ end
 Release a list of received packets after they have been processed.
 """
 function release_pkts(ctx, recv_pkt)
-    rc = @ccall $(hashpipe_ibv_release_pkts[])(
-                  Ref(ctx)::Ptr{Context},
-                  recv_pkt::Ptr{RecvPkt}
-                 )::Cint
-    rc == 0 ? nothing : error(Libc.strerror())
+    if recv_pkt != C_NULL
+        rc = @ccall $(hashpipe_ibv_release_pkts[])(
+                    Ref(ctx)::Ptr{Context},
+                    recv_pkt::Ptr{RecvPkt}
+                    )::Cint
+        rc == 0 || error(Libc.strerror())
+    end
+    nothing
 end
 
 """
@@ -292,13 +295,15 @@ end
 Send the list of packets pointed to by `ppkt`.  This function posts the packets
 for transmission and then returns; it does not wait for them to be transmitted.
 """
-function send_pkts(ctx, ppkt)
-    # Always use QP 0 (since multi-QP support may be disappearing)
-    rc = @ccall $(hashpipe_ibv_send_pkts[])(
-                  Ref(ctx)::Ptr{Context},
-                  ppkt::Ptr{SendPkt}, 0::UInt32
-                 )::Cint
-    rc == 0 || error(Libc.strerrno())
+function send_pkts(ctx, send_pkt)
+    if send_pkt != C_NULL
+        # Always use QP 0 (since multi-QP support may be disappearing)
+        rc = @ccall $(hashpipe_ibv_send_pkts[])(
+                    Ref(ctx)::Ptr{Context},
+                    send_pkt::Ptr{SendPkt}, 0::UInt32
+                    )::Cint
+        rc == 0 || (error(Libc.strerror()))
+    end
     nothing
 end
 
