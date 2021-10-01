@@ -206,9 +206,26 @@ function main(interface, rem_mac, rem_ip, loc_mac, loc_ip, num_to_send=10^6, des
     payload_gbps = round(payload_gbps, sigdigits=5)
     total_gbps = round(total_gbps, sigdigits=5)
 
-    # Show summary
+    # Show summary (timing stats may not include last batch of packets)
     @info "sent $pkts DIBAS packets [$payload_bytes/$total_bytes bytes] in $(
         canonicalize(ms)) [$pps pps, $payload_gbps/$total_gbps Gbps]"
+
+    # Ensure that all sent packets have been transmitted by calling `get_pkts`
+    # until we have acquired all of the send packets.  We aren't intending to
+    # send any more packets so we can ignore the packets that we acquire here
+    # (other than counting them).  We only stay in this loop for a maximum of 1
+    # second.
+    npkts = Int(ctx.send_pkt_num)
+    ngets = 0
+    while npkts > 0 && ngets < 10
+        pkts = HashpipeIBVerbs.get_pkts(ctx, npkts)
+        npkts -= length(pkts)
+        ngets += 1
+        sleep(0.1)
+    end
+    if npkts > 0
+        @warn "$npkts packets may not have been transmitted" _file=nothing _module=nothing
+    end
 
     # Shutdown
     HashpipeIBVerbs.shutdown(ctx)
