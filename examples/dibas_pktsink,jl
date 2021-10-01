@@ -1,0 +1,89 @@
+using HashpipeIBVerbs
+
+"""
+Return the DIBAS mcount from a DIBAS packet in `buf`.
+"""
+function dibas_mcount(buf)
+    Int64(ntoh(unsafe_load(Ptr{UInt64}(pointer(buf)+42))) & 0x00ff_ffff_ffff_ffff)
+end
+
+function showstats(elapsed::AbstractFloat, mcount::Int64, npkts::Int64, nbytes::Int64, ncalls::Int64)
+    pps = round(npkts / elapsed, sigdigits=6)
+    bps = round(8 * nbytes / elapsed, sigdigits=4)
+    ppc = round(npkts / ncalls, sigdigits=3)
+
+    println(
+        "elapsed ", round(elapsed, digits=3),
+        " Δmcount ", mcount-npkts+1,
+        " npkts ", npkts,
+        " pps ", pps,
+        " nbytes ", nbytes,
+        " bps ", bps,
+        " ncalls ", ncalls,
+        " ppc ", ppc
+    )
+end
+
+function main(interface="eth4", pkt_size_max=9*1024)
+    # Initialize library to use `eth4` network interface, 1 packet send buffer,
+    # max supported packet receive buffers, and 9 KiB max packet size.
+    ctx = HashpipeIBVerbs.init(interface, 1, 0, pkt_size_max)
+
+    recv_bufs = HashpipeIBVerbs.wrap_recv_bufs(ctx)
+
+    # Add a "flow" rule to capture packet sent to eth4's MAC address
+    # which is the destination MAC address for Spanning Tree Protocol packets often
+    # sent by switches.
+    HashpipeIBVerbs.flow(ctx, 1, dst_mac=ctx.mac)
+
+    start = time()
+    npkts = 0
+    nbytes = 0
+    ncalls = 0
+    report_every = 10_000_000
+    report_at = report_every
+    stop_at = 10 * report_every
+    mcount = Int64(0)
+
+    @info "ready to receive $stop_at packets (using $(ctx.recv_pkt_num) recv packets)"
+
+    # Loop "forever"
+    while true
+        # Receive packet(s)
+        pkts = HashpipeIBVerbs.recv_pkts(ctx, 50)
+        ncalls += 1
+
+        # Iterate through `pkts`
+        for pkt in pkts
+            # Reset start time on first packet
+            npkts == 0  && (start = time())
+
+            # Accumulate stats
+            npkts += 1
+            nbytes += pktlen(pkt)
+            mcount = dibas_mcount(recv_bufs[pkt])
+        end
+
+        # Release packet(s)
+        HashpipeIBVerbs.release_pkts(ctx, pkts)
+        
+        if npkts >= report_at
+            showstats(time()-start, mcount, npkts, nbytes, ncalls)
+            report_at >= stop_at && break
+            report_at += report_every
+        end
+    end
+
+    # Shutdown (frees resources allocated by init)
+    HashpipeIBVerbs.shutdown(ctx)
+end
+
+# Precompiling these methods prevent packet drops during the first logging of
+# stats when these would otherwise get compiled.
+# These were found using SnoopCompile.jl.
+precompile(print, (Base.TTY, String, Float64, Vararg{Any,N} where N))
+precompile(print, (Base.TTY, Float64))
+precompile(print, (Base.TTY, Int))
+
+# Run it!
+main()
