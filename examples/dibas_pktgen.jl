@@ -128,15 +128,16 @@ function send_dibas_pkts(ctx, send_bufs, num_to_send=10^6, desired_bps::Float32=
     packet_sz = dibas_udp_size()
     packet_bits = 8 * packet_sz
 
-    while pkts_sent < num_to_send
+    while num_to_send > 0
         # Get packet to send
-        pkts = HashpipeIBVerbs.get_pkts(ctx, 500)
+        pkts = HashpipeIBVerbs.get_pkts(ctx, min(num_to_send, 500))
 
         # Loop over send packets to set mcount
         for pkt in pkts
             dibas_mcount!(send_bufs[pkt], mcount)
             mcount += 1
             pkts_sent += 1
+            num_to_send -= 1
         end
 
         # Send packets!
