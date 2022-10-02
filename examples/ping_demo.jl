@@ -13,7 +13,7 @@ loc_ip = ip"10.10.10.11"         # Local IP (for `interface`)
 """
 Compute the 16 bit checksum value of v.
 
-This checksum is used in many Internal protocols.
+This checksum is used in many Internet protocols.
 """
 function checksum16(v::AbstractVector{UInt8})::UInt16
     csum = sum(v[1:2:end]) << 8

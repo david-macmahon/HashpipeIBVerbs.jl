@@ -13,7 +13,7 @@ loc_ip = ip"10.10.10.11" # Local IP (for `interface`)
 """
 Compute the 16 bit checksum value of v.
 
-This checksum is used in many Internal protocols.
+This checksum is used in many Internet protocols.
 """
 function checksum16(v::AbstractVector{UInt8})::UInt16
     csum = sum(v[1:2:end]) << 8
@@ -66,7 +66,7 @@ function dibas_udp_pkt!(buf; dst_mac, src_mac, dst_ip, src_ip,
     ip_hdr = UInt32[
         0x4500_0000 | (ip_sz + udp_sz + hdr_sz + payload_sz + footer_sz),  # (verihl.tos)_(length)
         0x0000_4000, # (id)|(flags.fragoff)
-        0x4011_0000,   # (ttl.proto)_(csum*) [ICMP is proto 1]
+        0x4011_0000,   # (ttl.proto)_(csum*) [UDP is proto 0x11]
         UInt32(src_ip),
         UInt32(dst_ip)
     ]
