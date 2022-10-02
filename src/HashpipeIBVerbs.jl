@@ -94,9 +94,9 @@ passed to other functions in this module.
   - `max_flows` is the number of flow rules to support (defaults to 16 if omitted)
 """
 function init(interface_name, send_pkt_num, recv_pkt_num, pkt_size_max, max_flows=16)
-    iface_bytes = codeunits(rpad(interface_name, 16, '\0'))[1:16]
+    iface_bytes = vcat(codeunits(interface_name), zeros(UInt8, 16))
     ctx=Context(
-        interface_name=SVector{16, UInt8}(iface_bytes),
+        interface_name=SVector{16, UInt8}(iface_bytes[1:16]),
         send_pkt_num=send_pkt_num,
         recv_pkt_num=recv_pkt_num,
         pkt_size_max=pkt_size_max,
